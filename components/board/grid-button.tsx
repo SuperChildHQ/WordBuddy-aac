@@ -7,12 +7,16 @@ interface GridButtonProps {
   item: BoardItem;
   size: number;
   onPress: (item: BoardItem) => void;
+  editMode?: boolean;
+  onDelete?: (item: BoardItem) => void;
 }
 
-export function GridButton({ item, size, onPress }: GridButtonProps) {
+export function GridButton({ item, size, onPress, editMode = false, onDelete }: GridButtonProps) {
   const labelHeight = Math.max(20, Math.floor(size * 0.2));
   const fontSize = Math.max(10, Math.floor(size * 0.12));
   const imageSize = size - labelHeight;
+  const isFolder = item.type === 'folder';
+  const isPopover = item.type === 'popover';
 
   return (
     <Pressable
@@ -38,6 +42,29 @@ export function GridButton({ item, size, onPress }: GridButtonProps) {
         style={{ width: imageSize, height: imageSize }}
         contentFit="contain"
       />
+      {isFolder && (
+        <View style={styles.folderBadge}>
+          <Text style={styles.folderIcon}>📁</Text>
+        </View>
+      )}
+      {isPopover && (
+        <View style={styles.folderBadge}>
+          <Text style={styles.folderIcon}>▼</Text>
+        </View>
+      )}
+      {editMode && (
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation();
+            onDelete?.(item);
+          }}
+          style={styles.deleteBadge}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Verwijder ${item.label}`}>
+          <Text style={styles.deleteIcon}>✕</Text>
+        </Pressable>
+      )}
     </Pressable>
   );
 }
@@ -57,5 +84,29 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '700',
     textAlign: 'center',
+  },
+  folderBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+  },
+  folderIcon: {
+    fontSize: 16,
+  },
+  deleteBadge: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#999',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteIcon: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

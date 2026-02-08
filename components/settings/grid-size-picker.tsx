@@ -18,9 +18,9 @@ export function GridSizePicker({ value, onChange, min = 2, max = 12 }: GridSizeP
     <View style={styles.container}>
       <Pressable
         onPress={() => onChange(Math.max(min, value - 1))}
-        style={[styles.button, { backgroundColor: colors.tint }]}
+        style={[styles.button, { backgroundColor: colors.accent }]}
         disabled={value <= min}
-        accessibilityLabel="Decrease grid size"
+        accessibilityLabel="Rastergrootte verkleinen"
         accessibilityRole="button">
         <Text style={styles.buttonText}>-</Text>
       </Pressable>
@@ -29,9 +29,9 @@ export function GridSizePicker({ value, onChange, min = 2, max = 12 }: GridSizeP
       </Text>
       <Pressable
         onPress={() => onChange(Math.min(max, value + 1))}
-        style={[styles.button, { backgroundColor: colors.tint }]}
+        style={[styles.button, { backgroundColor: colors.accent }]}
         disabled={value >= max}
-        accessibilityLabel="Increase grid size"
+        accessibilityLabel="Rastergrootte vergroten"
         accessibilityRole="button">
         <Text style={styles.buttonText}>+</Text>
       </Pressable>

@@ -8,6 +8,7 @@ const STORAGE_KEY = 'wordbuddy_settings';
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
@@ -30,5 +31,5 @@ export function useSettings() {
     });
   }, []);
 
-  return { settings, updateSettings, isLoaded };
+  return { settings, updateSettings, isLoaded, editMode, setEditMode };
 }
