@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
 
 import { BoardItem, NormalizedPosition } from '@/types/board';
 import { createBoard, generateImageUrl } from '@/utils/board-storage';
+import { getSymbolImageUrl } from '@/utils/arasaac';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { SymbolPicker } from '@/components/board/symbol-picker';
 
 interface ItemEditorProps {
   visible: boolean;
@@ -33,6 +36,9 @@ export function ItemEditor({ visible, onClose, onSave, onOpenFolder, item, posit
   const [label, setLabel] = useState('');
   const [selectedColor, setSelectedColor] = useState(COLOR_OPTIONS[0]);
   const [itemType, setItemType] = useState<'word' | 'folder' | 'popover'>('word');
+  const [symbolId, setSymbolId] = useState<number | undefined>(undefined);
+  const [symbolImageUrl, setSymbolImageUrl] = useState<string | undefined>(undefined);
+  const [symbolPickerVisible, setSymbolPickerVisible] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -40,10 +46,14 @@ export function ItemEditor({ visible, onClose, onSave, onOpenFolder, item, posit
         setLabel(item.label);
         setSelectedColor(item.backgroundColor ?? COLOR_OPTIONS[0]);
         setItemType(item.type ?? 'word');
+        setSymbolId(item.symbolId);
+        setSymbolImageUrl(item.symbolId ? getSymbolImageUrl(item.symbolId) : undefined);
       } else {
         setLabel('');
         setSelectedColor(COLOR_OPTIONS[0]);
         setItemType('word');
+        setSymbolId(undefined);
+        setSymbolImageUrl(undefined);
       }
     }
   }, [visible, item]);
@@ -56,107 +66,145 @@ export function ItemEditor({ visible, onClose, onSave, onOpenFolder, item, posit
 
     const itemPosition = item?.position ?? position;
     const id = item?.id ?? `item_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    const imageUrl = symbolImageUrl ?? generateImageUrl(trimmed, selectedColor);
+
+    const baseItem: BoardItem = {
+      id,
+      label: trimmed,
+      imageUrl,
+      symbolId,
+      backgroundColor: selectedColor,
+      position: itemPosition,
+    };
 
     if (itemType === 'folder' || itemType === 'popover') {
       const linkedBoardId = item?.linkedBoardId ?? createBoard(trimmed).id;
-      onSave({
-        id,
-        label: trimmed,
-        imageUrl: generateImageUrl(trimmed, selectedColor),
-        backgroundColor: selectedColor,
-        type: itemType,
-        linkedBoardId,
-        position: itemPosition,
-      });
+      onSave({ ...baseItem, type: itemType, linkedBoardId });
     } else {
-      onSave({
-        id,
-        label: trimmed,
-        imageUrl: generateImageUrl(trimmed, selectedColor),
-        backgroundColor: selectedColor,
-        type: 'word',
-        position: itemPosition,
-      });
+      onSave({ ...baseItem, type: 'word' });
     }
   };
 
+  const handleSymbolSelect = (id: number, imageUrl: string) => {
+    setSymbolId(id);
+    setSymbolImageUrl(imageUrl);
+    setSymbolPickerVisible(false);
+  };
+
+  const handleClearSymbol = () => {
+    setSymbolId(undefined);
+    setSymbolImageUrl(undefined);
+  };
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={[styles.editor, { backgroundColor: colors.background }]}>
-          <Text style={[styles.title, { color: colors.text }]}>
-            {item ? 'Item bewerken' : 'Nieuw item'}
-          </Text>
+    <>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <View style={styles.backdrop}>
+          <View style={[styles.editor, { backgroundColor: colors.background }]}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {item ? 'Item bewerken' : 'Nieuw item'}
+            </Text>
 
-          <TextInput
-            value={label}
-            onChangeText={setLabel}
-            placeholder="Label"
-            placeholderTextColor={colors.icon}
-            style={[styles.input, { color: colors.text, borderColor: colors.buttonBorder }]}
-            autoFocus
-          />
+            <TextInput
+              value={label}
+              onChangeText={setLabel}
+              placeholder="Label"
+              placeholderTextColor={colors.icon}
+              style={[styles.input, { color: colors.text, borderColor: colors.buttonBorder }]}
+              autoFocus
+            />
 
-          <Text style={[styles.sectionLabel, { color: colors.text }]}>Kleur</Text>
-          <View style={styles.colorRow}>
-            {COLOR_OPTIONS.map((color) => (
+            <Text style={[styles.sectionLabel, { color: colors.text }]}>Symbool</Text>
+            <View style={styles.symbolRow}>
+              {symbolImageUrl ? (
+                <View style={styles.symbolPreviewContainer}>
+                  <Image
+                    source={{ uri: symbolImageUrl }}
+                    style={styles.symbolPreview}
+                    contentFit="contain"
+                  />
+                  <Pressable onPress={handleClearSymbol} style={styles.clearSymbolButton}>
+                    <Text style={styles.clearSymbolText}>✕</Text>
+                  </Pressable>
+                </View>
+              ) : null}
               <Pressable
-                key={color}
-                onPress={() => setSelectedColor(color)}
-                style={[
-                  styles.colorSwatch,
-                  { backgroundColor: color },
-                  selectedColor === color && styles.colorSelected,
-                ]}>
-                {selectedColor === color && <Text style={styles.checkmark}>✓</Text>}
+                onPress={() => setSymbolPickerVisible(true)}
+                style={[styles.symbolButton, { borderColor: colors.buttonBorder }]}>
+                <Text style={[styles.symbolButtonText, { color: colors.accent }]}>
+                  {symbolImageUrl ? 'Wijzig symbool' : 'Kies symbool'}
+                </Text>
               </Pressable>
-            ))}
-          </View>
+            </View>
 
-          {!hasLinkedBoard && (
-            <>
-              <Text style={[styles.sectionLabel, { color: colors.text }]}>Type</Text>
-              <View style={styles.typeRow}>
+            <Text style={[styles.sectionLabel, { color: colors.text }]}>Kleur</Text>
+            <View style={styles.colorRow}>
+              {COLOR_OPTIONS.map((color) => (
                 <Pressable
-                  onPress={() => setItemType('word')}
-                  style={[styles.typeButton, itemType === 'word' && { backgroundColor: colors.accent }]}>
-                  <Text style={[styles.typeText, itemType === 'word' && styles.typeTextActive]}>Woord</Text>
+                  key={color}
+                  onPress={() => setSelectedColor(color)}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: color },
+                    selectedColor === color && styles.colorSelected,
+                  ]}>
+                  {selectedColor === color && <Text style={styles.checkmark}>✓</Text>}
                 </Pressable>
-                <Pressable
-                  onPress={() => setItemType('folder')}
-                  style={[styles.typeButton, itemType === 'folder' && { backgroundColor: colors.accent }]}>
-                  <Text style={[styles.typeText, itemType === 'folder' && styles.typeTextActive]}>Map</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setItemType('popover')}
-                  style={[styles.typeButton, itemType === 'popover' && { backgroundColor: colors.accent }]}>
-                  <Text style={[styles.typeText, itemType === 'popover' && styles.typeTextActive]}>Popover</Text>
-                </Pressable>
-              </View>
-            </>
-          )}
+              ))}
+            </View>
 
-          {hasLinkedBoard && item!.linkedBoardId && (
-            <Pressable
-              onPress={() => onOpenFolder?.(item!.linkedBoardId!)}
-              style={[styles.openFolderButton, { backgroundColor: colors.accent }]}>
-              <Text style={styles.openFolderText}>
-                {item!.type === 'popover' ? 'Popover items bewerken' : 'Map openen'}
-              </Text>
-            </Pressable>
-          )}
+            {!hasLinkedBoard && (
+              <>
+                <Text style={[styles.sectionLabel, { color: colors.text }]}>Type</Text>
+                <View style={styles.typeRow}>
+                  <Pressable
+                    onPress={() => setItemType('word')}
+                    style={[styles.typeButton, itemType === 'word' && { backgroundColor: colors.accent }]}>
+                    <Text style={[styles.typeText, itemType === 'word' && styles.typeTextActive]}>Woord</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setItemType('folder')}
+                    style={[styles.typeButton, itemType === 'folder' && { backgroundColor: colors.accent }]}>
+                    <Text style={[styles.typeText, itemType === 'folder' && styles.typeTextActive]}>Map</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setItemType('popover')}
+                    style={[styles.typeButton, itemType === 'popover' && { backgroundColor: colors.accent }]}>
+                    <Text style={[styles.typeText, itemType === 'popover' && styles.typeTextActive]}>Popover</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
 
-          <View style={styles.buttonRow}>
-            <Pressable onPress={onClose} style={[styles.cancelButton, { borderColor: colors.buttonBorder }]}>
-              <Text style={[styles.cancelText, { color: colors.text }]}>Annuleren</Text>
-            </Pressable>
-            <Pressable onPress={handleSave} style={[styles.saveButton, { backgroundColor: colors.accent }]}>
-              <Text style={styles.saveText}>Opslaan</Text>
-            </Pressable>
+            {hasLinkedBoard && item!.linkedBoardId && (
+              <Pressable
+                onPress={() => onOpenFolder?.(item!.linkedBoardId!)}
+                style={[styles.openFolderButton, { backgroundColor: colors.accent }]}>
+                <Text style={styles.openFolderText}>
+                  {item!.type === 'popover' ? 'Popover items bewerken' : 'Map openen'}
+                </Text>
+              </Pressable>
+            )}
+
+            <View style={styles.buttonRow}>
+              <Pressable onPress={onClose} style={[styles.cancelButton, { borderColor: colors.buttonBorder }]}>
+                <Text style={[styles.cancelText, { color: colors.text }]}>Annuleren</Text>
+              </Pressable>
+              <Pressable onPress={handleSave} style={[styles.saveButton, { backgroundColor: colors.accent }]}>
+                <Text style={styles.saveText}>Opslaan</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      <SymbolPicker
+        visible={symbolPickerVisible}
+        onClose={() => setSymbolPickerVisible(false)}
+        onSelect={handleSymbolSelect}
+        initialQuery={label}
+      />
+    </>
   );
 }
 
@@ -186,6 +234,45 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 16,
+    fontWeight: '600',
+  },
+  symbolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  symbolPreviewContainer: {
+    position: 'relative',
+  },
+  symbolPreview: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+  },
+  clearSymbolButton: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#999',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearSymbolText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  symbolButton: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  symbolButtonText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   colorRow: {

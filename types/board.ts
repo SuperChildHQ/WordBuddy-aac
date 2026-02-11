@@ -7,6 +7,7 @@ export interface BoardItem {
   id: string;
   label: string;
   imageUrl: string;
+  symbolId?: number; // ARASAAC pictogram ID
   audioFile?: string;
   backgroundColor?: string;
   position?: NormalizedPosition;
